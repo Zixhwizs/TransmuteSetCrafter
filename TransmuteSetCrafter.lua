@@ -11,6 +11,115 @@ local TSC = TransmuteSetCrafter
 TSC.name    = "TransmuteSetCrafter"
 TSC.version = 1
 
+-- ── Shared color + armor-type tables ──────────────────────
+-- One source of truth for colors and armor letters used by both the lists
+-- (UI.lua) and the queue derivation (Queue.lua). ZO_ColorDef has both
+-- :UnpackRGBA() for SetColor calls and :Colorize(text) for inline color
+-- markup in label strings.
+
+TSC.Color = {
+    ARMOR_HEAVY  = ZO_ColorDef:New("FF5050"),
+    ARMOR_MEDIUM = ZO_ColorDef:New("50FF50"),
+    ARMOR_LIGHT  = ZO_ColorDef:New("60A0FF"),
+    TEAL         = ZO_ColorDef:New("76BCC3"),
+    DISABLED     = ZO_ColorDef:New(0.40, 0.40, 0.40, 1),
+    ENOUGH       = ZO_ColorDef:New(0.55, 0.95, 0.55, 1),  -- have ≥ needed
+    SHORT        = ZO_ColorDef:New(1.00, 0.45, 0.45, 1),  -- short of materials
+    HEADER_HOVER = ZO_ColorDef:New(1.00, 1.00, 0.40, 1),  -- inventory header hover
+}
+
+TSC.ArmorLetter = {
+    [ARMORTYPE_HEAVY]  = "H",
+    [ARMORTYPE_MEDIUM] = "M",
+    [ARMORTYPE_LIGHT]  = "L",
+}
+
+-- ── Notification helper ───────────────────────────────────
+-- One place to send user-facing messages. INFO/WARN go to chat with a
+-- "[TSC] " prefix; ERROR also pops a top-screen alert with negative sound
+-- (so the user notices even with the chat window collapsed).
+
+TSC.NOTIFY_INFO  = "info"
+TSC.NOTIFY_WARN  = "warn"
+TSC.NOTIFY_ERROR = "error"
+
+local NOTIFY_PREFIX = "[TSC] "
+
+function TSC.Notify(level, text)
+    if level == TSC.NOTIFY_ERROR then
+        ZO_Alert(UI_ALERT_CATEGORY_ERROR, SOUNDS.NEGATIVE_CLICK, text)
+    end
+    d(NOTIFY_PREFIX .. text)
+end
+
+function TSC.NotifyF(level, stringId, ...)
+    TSC.Notify(level, zo_strformat(stringId, ...))
+end
+
+-- ── Shared UI state ───────────────────────────────────────
+-- Selection state shared between UI.lua (click handlers, edit/add flow) and
+-- UI_Dropdowns.lua (combobox callbacks write here when the user picks).
+-- Each refers to TSC._UI.selected* instead of holding its own local copy.
+
+TSC._UI = {
+    -- Trait/quality/enchant pickers (set by UI_Dropdowns combobox callbacks)
+    selectedTrait          = nil,
+    selectedQuality        = nil,
+    selectedEnchant        = "",
+    selectedEnchantQuality = ITEM_FUNCTIONAL_QUALITY_LEGENDARY,
+    -- Multi-select piece state (mutated by UI_Lists, read by add/edit flow)
+    selectedPieces         = {},
+    lastSelectedPiece      = nil,
+    lastUsedCategory       = nil,
+    editingQueueIndex      = nil,
+    -- Set/piece browsing mode (mutated by UI_Lists + OpenWindow)
+    browsingMode           = "sets",
+    selectedSet            = nil,
+}
+
+-- Pick a TSC.Color for an armor type, returning nil for non-armor (caller
+-- decides the fallback). Centralizes the H→red / M→green / L→blue mapping.
+function TSC.GetArmorColor(armorType)
+    if     armorType == ARMORTYPE_HEAVY  then return TSC.Color.ARMOR_HEAVY
+    elseif armorType == ARMORTYPE_MEDIUM then return TSC.Color.ARMOR_MEDIUM
+    elseif armorType == ARMORTYPE_LIGHT  then return TSC.Color.ARMOR_LIGHT
+    end
+    return nil
+end
+
+-- ── Lazy caches ────────────────────────────────────────────
+-- Both invalidate on EVENT_ITEM_SET_COLLECTIONS_UPDATED so the data manager
+-- can swap underlying objects without leaving us with stale references.
+
+local cachedCurrencyType -- nil = not computed yet
+
+function TSC.GetReconCurrencyType()
+    if cachedCurrencyType == nil then
+        cachedCurrencyType = ITEM_SET_COLLECTIONS_DATA_MANAGER:GetReconstructionCurrencyOptionType(1)
+                             or CURT_TRANSMUTE_CRYSTALS
+    end
+    return cachedCurrencyType
+end
+
+local pieceDataCache = {}  -- [pieceId] = pieceData | false (miss)
+
+function TSC.GetPieceData(pieceId)
+    if not pieceId then return nil end
+    local hit = pieceDataCache[pieceId]
+    if hit == nil then
+        hit = ITEM_SET_COLLECTIONS_DATA_MANAGER:GetItemSetCollectionPieceData(pieceId) or false
+        pieceDataCache[pieceId] = hit
+    end
+    return hit or nil
+end
+
+EVENT_MANAGER:RegisterForEvent(TSC.name .. "_CacheInval",
+    EVENT_ITEM_SET_COLLECTIONS_UPDATED,
+    function()
+        cachedCurrencyType = nil
+        pieceDataCache     = {}
+    end)
+
 -- ── Saved variable defaults ────────────────────────────────
 
 TSC.defaults = {

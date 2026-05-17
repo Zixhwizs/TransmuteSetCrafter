@@ -6,7 +6,7 @@
 
 ## Title: Transmute Set Crafter
 ## Author: zixhwizs
-## Version: 1.0.2
+## Version: 1.0.0
 ## AddOnVersion: 010000
 ## APIVersion: 101049
 ## Description: Queue-based reconstruction at the Transmutation Station with auto-applied glyphs at the enchanting station.
@@ -27,6 +27,10 @@ TransmuteSetCrafter.xml
 ; Modules that extend the namespace (safe because TransmuteSetCrafter.lua is already loaded)
 Queue.lua
 UI.lua
+UI_Cost.lua
+UI_Dropdowns.lua
+UI_Lists.lua
+UI_QueueRow.lua
 Enchanting.lua
 Quicksaves.lua
 SettingsMenu.lua

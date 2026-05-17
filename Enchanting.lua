@@ -108,7 +108,7 @@ end
 -- the piece's item link before comparing.
 local function FindReconstructedItem(entry)
     if not entry or not entry.pieceId then return nil end
-    local pieceData = ITEM_SET_COLLECTIONS_DATA_MANAGER:GetItemSetCollectionPieceData(entry.pieceId)
+    local pieceData = TSC.GetPieceData(entry.pieceId)
     if not pieceData then return nil end
     local expectedItemId = GetItemLinkItemId(pieceData:GetItemLink())
     if not expectedItemId then return nil end
@@ -191,7 +191,7 @@ end
 -- (or apply an existing matching glyph if one is already in the bag).
 function TSC.CraftMissingGlyphs()
     if not LLC then
-        d("[TSC] LibLazyCrafting not available — install it to auto-craft glyphs.")
+        TSC.Notify(TSC.NOTIFY_WARN, GetString(SI_TSC_MSG_NO_LLC))
         return
     end
     if GetCraftingInteractionType() ~= CRAFTING_TYPE_ENCHANTING then return end
@@ -202,7 +202,7 @@ function TSC.CraftMissingGlyphs()
             local enchantId = ENCHANT_ID[entry.enchantment]
             if not enchantId then
                 unmapped = unmapped + 1
-                d(zo_strformat("[TSC] No LibLazyCrafting mapping for '<<1>>' — skipping.", entry.enchantment))
+                TSC.NotifyF(TSC.NOTIFY_WARN, SI_TSC_MSG_NO_LLC_MAPPING, entry.enchantment)
             else
                 local existingBag, existingSlot = FindGlyphForEntry(entry)
                 if existingBag then
@@ -214,12 +214,12 @@ function TSC.CraftMissingGlyphs()
                         local capturedEntry = entry
                         zo_callLater(function()
                             EnchantItem(capturedTargetBag, capturedTargetSlot, capturedGlyphBag, capturedGlyphSlot)
-                            d(zo_strformat("[TSC] Applied existing glyph to <<1>>.", capturedName))
+                            TSC.NotifyF(TSC.NOTIFY_INFO, SI_TSC_MSG_APPLIED_EXISTING, capturedName)
                             zo_callLater(function() RemoveEntryFromQueue(capturedEntry) end, 400)
                         end, 300)
                         applied = applied + 1
                     else
-                        d(zo_strformat("[TSC] Have glyph for '<<1>>' but reconstructed item not found.", entry.pieceName))
+                        TSC.NotifyF(TSC.NOTIFY_WARN, SI_TSC_MSG_GLYPH_HAVE_NO_ITEM, entry.pieceName)
                     end
                 else
                     -- LLC:CraftEnchantingGlyphByAttributes(isCP, level, enchantId, quality, autocraft, reference)
@@ -236,7 +236,7 @@ function TSC.CraftMissingGlyphs()
     end
 
     if requested > 0 or applied > 0 then
-        d(zo_strformat("[TSC] Glyphs — requested: <<1>>, applied existing: <<2>>.", requested, applied))
+        TSC.NotifyF(TSC.NOTIFY_INFO, SI_TSC_MSG_GLYPH_SUMMARY, requested, applied)
     end
 end
 
@@ -257,8 +257,25 @@ end
 
 -- LLC callback. result = { bag, slot, link, uniqueId, quantity, reference }
 local function OnLLCCallback(event, station, result)
-    if event ~= LLC_CRAFT_SUCCESS then return end
     if station ~= CRAFTING_TYPE_ENCHANTING then return end
+
+    -- Surface LLC failure events so the user knows why a queued glyph wasn't
+    -- crafted. Without these branches the request just disappears silently
+    -- and the queue entry stays in "needs_enchant" with no explanation.
+    if event == LLC_INSUFFICIENT_MATERIALS or event == LLC_ENCHANTMENT_FAILED then
+        local ref   = result and result.reference
+        local entry = ref and pendingCrafts[ref]
+        local name  = entry and entry.pieceName or "queued glyph"
+        if ref then pendingCrafts[ref] = nil end
+        if event == LLC_INSUFFICIENT_MATERIALS then
+            TSC.NotifyF(TSC.NOTIFY_WARN, SI_TSC_MSG_GLYPH_INSUFFICIENT, name)
+        else
+            TSC.NotifyF(TSC.NOTIFY_ERROR, SI_TSC_MSG_GLYPH_FAILED, name)
+        end
+        return
+    end
+
+    if event ~= LLC_CRAFT_SUCCESS then return end
     if not result or not result.reference then return end
 
     -- Look up the entry by our unique reference — NOT by queue index, since the
@@ -270,20 +287,23 @@ local function OnLLCCallback(event, station, result)
     pendingCrafts[result.reference] = nil
 
     if entry.status ~= "needs_enchant" then
-        d(zo_strformat("[TSC] LLC callback: entry '<<1>>' has status '<<2>>', skipping",
-                       entry.pieceName or "?", entry.status or "?"))
+        -- Dev diagnostic; not surfaced to the user under normal flow.
+        TSC.Notify(TSC.NOTIFY_WARN, zo_strformat(
+            "LLC callback: entry '<<1>>' has status '<<2>>', skipping",
+            entry.pieceName or "?", entry.status or "?"))
         return
     end
 
     local glyphBag, glyphSlot = result.bag, result.slot
     if not glyphBag or not glyphSlot then
-        d("[TSC] LLC callback: result has no bag/slot for the crafted glyph")
+        TSC.Notify(TSC.NOTIFY_WARN,
+                   "LLC callback: result has no bag/slot for the crafted glyph")
         return
     end
 
     local targetBag, targetSlot = FindReconstructedItem(entry)
     if not targetBag then
-        d(zo_strformat("[TSC] Glyph crafted but reconstructed item not found in backpack for '<<1>>'.", entry.pieceName))
+        TSC.NotifyF(TSC.NOTIFY_WARN, SI_TSC_MSG_GLYPH_NO_ITEM, entry.pieceName)
         return
     end
 
@@ -292,7 +312,7 @@ local function OnLLCCallback(event, station, result)
     local capturedEntry = entry
     zo_callLater(function()
         EnchantItem(targetBag, targetSlot, glyphBag, glyphSlot)
-        d(zo_strformat("[TSC] Applied glyph to <<1>>.", capturedEntry.pieceName))
+        TSC.NotifyF(TSC.NOTIFY_INFO, SI_TSC_MSG_APPLIED_GLYPH, capturedEntry.pieceName)
         zo_callLater(function() RemoveEntryFromQueue(capturedEntry) end, 400)
     end, 300)
 end

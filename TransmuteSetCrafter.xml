@@ -197,10 +197,26 @@
             TransmuteSetCrafter.DeleteQuicksaveRow(self:GetParent())
           </OnClicked>
         </Button>
+        <Button name="$(parent)Export" inherits="ZO_DefaultButton">
+          <Anchor point="RIGHT" relativeTo="$(parent)Delete"
+                  relativePoint="LEFT" offsetX="-2" offsetY="0" />
+          <Dimensions x="22" y="22" />
+          <OnClicked>
+            TransmuteSetCrafter.ExportQuicksaveRow(self:GetParent())
+          </OnClicked>
+        </Button>
+        <Button name="$(parent)Rename" inherits="ZO_DefaultButton">
+          <Anchor point="RIGHT" relativeTo="$(parent)Export"
+                  relativePoint="LEFT" offsetX="-2" offsetY="0" />
+          <Dimensions x="22" y="22" />
+          <OnClicked>
+            TransmuteSetCrafter.RenameQuicksaveRow(self:GetParent())
+          </OnClicked>
+        </Button>
         <Label name="$(parent)Name" font="ZoFontGame" wrapMode="TRUNCATE"
                verticalAlignment="CENTER" horizontalAlignment="LEFT" color="76BCC3">
           <Anchor point="TOPLEFT" offsetX="6" offsetY="0" />
-          <Anchor point="TOPRIGHT" relativeTo="$(parent)Delete"
+          <Anchor point="TOPRIGHT" relativeTo="$(parent)Rename"
                   relativePoint="TOPLEFT" offsetX="-4" offsetY="0" />
           <Dimensions y="26" />
         </Label>
@@ -331,6 +347,15 @@
           <Dimensions y="30" />
         </Label>
 
+        <!-- Import button just below the title -->
+        <Button name="$(parent)ImportButton" inherits="ZO_DefaultButton">
+          <Anchor point="TOPRIGHT" offsetX="-10" offsetY="42" />
+          <Dimensions x="72" y="22" />
+          <OnClicked>
+            TransmuteSetCrafter.ShowImportDialog()
+          </OnClicked>
+        </Button>
+
         <!-- Save button bottom-right -->
         <Button name="$(parent)SaveButton" inherits="ZO_DefaultButton">
           <Anchor point="BOTTOMRIGHT" offsetX="-10" offsetY="-10" />
@@ -354,12 +379,73 @@
                   relativePoint="BOTTOMRIGHT" offsetX="-6" offsetY="-3" />
         </EditBox>
 
-        <!-- Scroll list fills the space between title and input -->
+        <!-- Scroll list fills the space between import-row and input -->
         <Control name="$(parent)List" inherits="ZO_ScrollList">
-          <Anchor point="TOPLEFT"  offsetX="6"  offsetY="44" />
+          <Anchor point="TOPLEFT"  offsetX="6"  offsetY="72" />
           <Anchor point="BOTTOMRIGHT" relativeTo="$(parent)NameBG"
                   relativePoint="TOPRIGHT" offsetX="0" offsetY="-6" />
         </Control>
+      </Controls>
+    </TopLevelControl>
+
+    <!-- =========================================================
+         Port dialog — single window for both Import and Export.
+         A title, a multi-line EditBox, a close button, and a
+         conditional action button (Import / Copy). Lua toggles
+         mode via TSC.ShowExportDialog / TSC.ShowImportDialog.
+    ========================================================= -->
+    <TopLevelControl name="TransmuteSetCrafterPortDialog" tier="HIGH"
+                     clampedToScreen="true" mouseEnabled="true"
+                     movable="true" hidden="true" level="100">
+      <Dimensions x="520" y="300" />
+      <Anchor point="CENTER" relativeTo="GuiRoot" relativePoint="CENTER" />
+      <Controls>
+        <Backdrop name="$(parent)BG" inherits="ZO_DefaultBackdrop" centerColor="666666">
+          <AnchorFill />
+        </Backdrop>
+
+        <Label name="$(parent)Title" font="ZoFontGameLargeBold"
+               color="FFFFFF" verticalAlignment="CENTER" horizontalAlignment="CENTER">
+          <Anchor point="TOPLEFT"  offsetX="15"  offsetY="10" />
+          <Anchor point="TOPRIGHT" offsetX="-15" offsetY="10" />
+          <Dimensions y="28" />
+        </Label>
+
+        <Button name="$(parent)CloseButton" inherits="ZO_CloseButton">
+          <Anchor point="TOPRIGHT" offsetX="-4" offsetY="4" />
+          <OnClicked>
+            TransmuteSetCrafter.ClosePortDialog()
+          </OnClicked>
+        </Button>
+
+        <Backdrop name="$(parent)EditBG" inherits="ZO_EditBackdrop">
+          <Anchor point="TOPLEFT"     offsetX="15"  offsetY="50" />
+          <Anchor point="BOTTOMRIGHT" offsetX="-15" offsetY="-66" />
+        </Backdrop>
+        <EditBox name="$(parent)EditBox"
+                 inherits="ZO_DefaultEditMultiLineForBackdrop"
+                 maxInputCharacters="8000">
+          <Anchor point="TOPLEFT" relativeTo="$(parent)EditBG"
+                  relativePoint="TOPLEFT" offsetX="8" offsetY="6" />
+          <Anchor point="BOTTOMRIGHT" relativeTo="$(parent)EditBG"
+                  relativePoint="BOTTOMRIGHT" offsetX="-8" offsetY="-6" />
+        </EditBox>
+
+        <Label name="$(parent)Hint" font="ZoFontGame" color="BBBBBB"
+               verticalAlignment="CENTER" horizontalAlignment="LEFT" wrapMode="ELLIPSIS">
+          <Anchor point="BOTTOMLEFT"  offsetX="15"  offsetY="-16" />
+          <Anchor point="BOTTOMRIGHT" relativeTo="$(parent)ActionButton"
+                  relativePoint="BOTTOMLEFT" offsetX="-6" offsetY="0" />
+          <Dimensions y="22" />
+        </Label>
+
+        <Button name="$(parent)ActionButton" inherits="ZO_DefaultButton" hidden="true">
+          <Anchor point="BOTTOMRIGHT" offsetX="-15" offsetY="-12" />
+          <Dimensions x="100" y="28" />
+          <OnClicked>
+            TransmuteSetCrafter.OnPortDialogAction()
+          </OnClicked>
+        </Button>
       </Controls>
     </TopLevelControl>
 
