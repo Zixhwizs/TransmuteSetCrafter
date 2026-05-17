@@ -127,6 +127,18 @@
             TransmuteSetCrafter.EditQueueRow(self:GetParent())
           </OnClicked>
         </Button>
+        <Label name="$(parent)Warning" font="ZoFontWinH3" hidden="true"
+               mouseEnabled="true"
+               verticalAlignment="CENTER" horizontalAlignment="CENTER" color="FF3030">
+          <Anchor point="RIGHT" relativeTo="$(parent)Edit" relativePoint="LEFT" offsetX="-4" />
+          <Dimensions x="16" y="22" />
+          <OnMouseEnter>
+            TransmuteSetCrafter.OnQueueRowWarningEnter(self)
+          </OnMouseEnter>
+          <OnMouseExit>
+            TransmuteSetCrafter.OnQueueRowWarningExit(self)
+          </OnMouseExit>
+        </Label>
         <Texture name="$(parent)Highlight" alpha="0"
                  textureFile="EsoUI/Art/Buttons/btnHighlight.dds" blendMode="ADD">
           <AnchorFill />

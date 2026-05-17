@@ -931,6 +931,7 @@ function TSC.RefreshQueueList()
             setName        = entry.setName,
             pieceType      = entry.pieceType   or "",
             armorType      = entry.armorType,
+            traitType      = entry.traitType,
             traitName      = entry.traitName,
             quality        = entry.quality,
             qualityName    = entry.qualityName,
@@ -1049,6 +1050,45 @@ function TSC.SetupQueueRow(ctrl, data)
 
     ctrl:GetNamedChild("Highlight"):SetAlpha(0)
     ctrl:GetNamedChild("Edit"):SetText("Edit")
+
+    -- Show a red warning if the player can't actually reconstruct this entry:
+    -- piece not unlocked, or chosen trait not researched for this piece.
+    local warningLbl = ctrl:GetNamedChild("Warning")
+    if warningLbl then
+        local reason = nil
+        local pieceData = data.pieceId and
+                          ITEM_SET_COLLECTIONS_DATA_MANAGER:GetItemSetCollectionPieceData(data.pieceId)
+        if not pieceData then
+            reason = "Set piece no longer available."
+        elseif not pieceData:IsUnlocked() then
+            reason = "You haven't collected this set piece yet."
+        else
+            local traitType = data.traitType
+            if traitType and traitType ~= ITEM_TRAIT_TYPE_NONE
+               and not IsTraitKnownForItem(data.pieceId, traitType) then
+                reason = "You haven't researched this trait for this piece."
+            end
+        end
+        if reason then
+            warningLbl:SetText("!")
+            warningLbl:SetHidden(false)
+            ctrl.warningReason = reason
+        else
+            warningLbl:SetHidden(true)
+            ctrl.warningReason = nil
+        end
+    end
+end
+
+function TSC.OnQueueRowWarningEnter(ctrl)
+    local row = ctrl:GetParent()
+    if not row or not row.warningReason then return end
+    InitializeTooltip(InformationTooltip, ctrl, BOTTOMRIGHT, 0, -4, BOTTOMLEFT)
+    InformationTooltip:AddLine(row.warningReason, "ZoFontGameMedium", 1.0, 0.45, 0.45)
+end
+
+function TSC.OnQueueRowWarningExit(ctrl)
+    ClearTooltip(InformationTooltip)
 end
 
 -- ── Add button state ───────────────────────────────────────
