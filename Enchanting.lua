@@ -72,6 +72,60 @@ local ENCHANT_ID = {
     -- intentionally unmapped — CraftMissingGlyphs will log a skip notice.
 }
 
+-- ── Reverse lookup: read an equipped item's enchant ──────
+-- Parse fields 4 (glyph itemId) and 5 (subtype) from an item link, then
+-- reverse-map through LLC's published tables to recover (TSC enchant name,
+-- functional quality). Returns nil for either if the item has no glyph or
+-- the glyph isn't in LLC's known set.
+
+local llcEnchantIdToName  -- [llcEnchantId] = TSC enchantment name
+local subtypeToQuality    -- [subtype]      = ITEM_FUNCTIONAL_QUALITY_*
+
+function TSC.GetEnchantInfoFromItemLink(link)
+    if not link or link == "" then return nil, nil end
+    if not LibLazyCrafting or not LibLazyCrafting.glyphEssenceIdInfo
+       or not LibLazyCrafting.enchantCPQualityInfo then
+        return nil, nil
+    end
+
+    -- Item link fields are colon-separated:
+    --   |H<style>:item:<itemId>:<subtype>:<level>:<enchantItemId>:<enchSubtype>:...
+    local glyphItemId, enchSubtype =
+        link:match("^|H%d:item:%d+:%d+:%d+:(%d+):(%d+):")
+    glyphItemId  = tonumber(glyphItemId)
+    enchSubtype  = tonumber(enchSubtype)
+    if not glyphItemId or glyphItemId == 0 then return nil, nil end
+
+    -- Lazy-build reverse maps from LLC tables.
+    if not llcEnchantIdToName then
+        llcEnchantIdToName = {}
+        for name, llcId in pairs(ENCHANT_ID) do
+            -- ENCHANT_ID has aliases (e.g., Reduce Magicka Cost → 86 ==
+            -- Reduce Spell Cost). Keep the first-seen name per id.
+            if not llcEnchantIdToName[llcId] then
+                llcEnchantIdToName[llcId] = name
+            end
+        end
+    end
+    if not subtypeToQuality then
+        subtypeToQuality = {}
+        local cp160 = LibLazyCrafting.enchantCPQualityInfo[160]
+        if cp160 then
+            for q, st in ipairs(cp160) do subtypeToQuality[st] = q end
+        end
+    end
+
+    local llcEnchantId
+    for _, row in ipairs(LibLazyCrafting.glyphEssenceIdInfo) do
+        if     row[3] == glyphItemId then llcEnchantId = row[1]; break
+        elseif row[4] == glyphItemId then llcEnchantId = row[2]; break
+        end
+    end
+    if not llcEnchantId then return nil, nil end
+
+    return llcEnchantIdToName[llcEnchantId], subtypeToQuality[enchSubtype]
+end
+
 -- ── Item-link enchantment fields (for tooltip preview) ────
 -- Returns (glyphItemId, subtype, lvl) suitable for fields 4/5/6 of an item
 -- link, given a TSC enchantment-name + quality. Uses LLC's published tables.

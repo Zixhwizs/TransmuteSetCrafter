@@ -108,3 +108,7 @@ ZO_CreateStringId("SI_TSC_LABEL_R",                 "R")  -- per-row Rename butt
 ZO_CreateStringId("SI_TSC_RENAME_DIALOG_TITLE",     "Rename Quicksave: <<1>>")
 ZO_CreateStringId("SI_TSC_RENAME_HINT",             "Edit the name and click Rename.")
 ZO_CreateStringId("SI_TSC_MSG_QUICKSAVE_RENAMED",   "Renamed quicksave to '<<1>>'.")
+
+-- Queue from equipped gear
+ZO_CreateStringId("SI_TSC_LABEL_QUEUE_EQUIPPED",    "Queue Equipped")
+ZO_CreateStringId("SI_TSC_MSG_EQUIPPED_QUEUED",     "Queued <<1>> equipped piece(s); skipped <<2>> (crafted sets and non-reconstructable items can't be queued).")

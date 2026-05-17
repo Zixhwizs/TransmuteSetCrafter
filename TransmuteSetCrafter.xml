@@ -731,6 +731,15 @@
           </OnClicked>
         </Button>
 
+        <!-- Queue Equipped — bottom-right of the main window -->
+        <Button name="$(parent)QueueEquippedButton" inherits="ZO_DefaultButton">
+          <Anchor point="BOTTOMRIGHT" offsetX="-10" offsetY="-34" />
+          <Dimensions x="150" y="32" />
+          <OnClicked>
+            TransmuteSetCrafter.QueueEquipped()
+          </OnClicked>
+        </Button>
+
       </Controls>
     </TopLevelControl>
 

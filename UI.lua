@@ -149,6 +149,7 @@ function TSC.SetupUI()
 
     TransmuteSetCrafterWindowClearQueueButton:SetText(GetString(SI_TSC_CLEAR_QUEUE))
     TransmuteSetCrafterWindowCancelEditButton:SetText(GetString(SI_TSC_LABEL_CANCEL_EDIT))
+    TransmuteSetCrafterWindowQueueEquippedButton:SetText(GetString(SI_TSC_LABEL_QUEUE_EQUIPPED))
 
     local searchBox = TransmuteSetCrafterWindowSearchBox
     searchBox:SetText("")

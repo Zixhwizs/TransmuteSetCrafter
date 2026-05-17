@@ -360,6 +360,91 @@ function TSC.EditQueueRow(ctrl)
     TSC.RefreshInventoryList()  -- inventory rows reflect lack of selection
 end
 
+-- ── Queue from equipped gear ──────────────────────────────
+-- Walk every slot in BAG_WORN (iterating by bag size rather than relying on
+-- EQUIP_SLOT_* constants) and queue each set-piece item with its current
+-- trait/quality + any detectable glyph.
+--
+-- Resolution: use GetItemLinkSetInfo(link) for the setId and
+-- GetItemLinkItemSetCollectionSlot(link) for the slot id64, then
+-- setData:GetPieceDataBySlot(slot) to recover the pieceData. This is more
+-- reliable than itemId reverse-mapping because collection links and
+-- equipped instances of the same item don't always share an itemId
+-- (notably for weapons, jewelry, and waist).
+
+-- Resolve an equipped item's link to its set-collection pieceData.
+-- Two non-obvious fallbacks are required:
+--   • Perfected trial sets carry the perfected setId on the equipped item,
+--     but the collection book stores the unperfected set. Fall back via
+--     GetItemSetUnperfectedSetId(setId).
+--   • GetItemLinkItemSetCollectionSlot() returns 0 on some items
+--     (notably perfected weapons + jewelry + waist), so the direct slot
+--     lookup misses. Fall back to matching by equip/armor/weapon type
+--     within the set's pieces.
+local function ResolveEquippedPieceData(link)
+    local hasSet, _, _, _, _, setId = GetItemLinkSetInfo(link)
+    if not hasSet or not setId or setId == 0 then return nil end
+
+    local mgr = ITEM_SET_COLLECTIONS_DATA_MANAGER
+    local setData = mgr:GetItemSetCollectionData(setId)
+    if not setData then
+        local unperfId = GetItemSetUnperfectedSetId(setId)
+        if unperfId and unperfId ~= 0 then
+            setData = mgr:GetItemSetCollectionData(unperfId)
+        end
+    end
+    if not setData then return nil end
+
+    local collectionSlot = GetItemLinkItemSetCollectionSlot(link)
+    if collectionSlot and collectionSlot ~= 0 then
+        local piece = setData:GetPieceDataBySlot(collectionSlot)
+        if piece then return piece end
+    end
+
+    -- Fallback: match by equip type + armor type + weapon type.
+    local equipType  = GetItemLinkEquipType(link)
+    local armorType  = GetItemLinkArmorType(link)
+    local weaponType = GetItemLinkWeaponType(link)
+    for _, pieceData in setData:PieceIterator() do
+        local pdLink = pieceData:GetItemLink()
+        if GetItemLinkEquipType(pdLink)  == equipType
+           and GetItemLinkArmorType(pdLink)  == armorType
+           and GetItemLinkWeaponType(pdLink) == weaponType then
+            return pieceData
+        end
+    end
+    return nil
+end
+
+function TSC.QueueEquipped()
+    local added, skipped = 0, 0
+    local bagSize = GetBagSize(BAG_WORN)
+    for slot = 0, bagSize - 1 do
+        local link = GetItemLink(BAG_WORN, slot)
+        if link and link ~= "" then
+            local pieceData = ResolveEquippedPieceData(link)
+            if pieceData then
+                local trait   = GetItemLinkTraitInfo(link)
+                local quality = GetItemLinkFunctionalQuality(link)
+                local enchant, enchantQuality
+                if TSC.GetEnchantInfoFromItemLink then
+                    enchant, enchantQuality = TSC.GetEnchantInfoFromItemLink(link)
+                end
+                TSC.AddToQueue(pieceData:GetId(),
+                               trait,
+                               quality,
+                               enchant or "",
+                               enchantQuality or ITEM_FUNCTIONAL_QUALITY_LEGENDARY)
+                added = added + 1
+            else
+                local hasSet = GetItemLinkSetInfo(link)
+                if hasSet then skipped = skipped + 1 end
+            end
+        end
+    end
+    TSC.NotifyF(TSC.NOTIFY_INFO, SI_TSC_MSG_EQUIPPED_QUEUED, added, skipped)
+end
+
 -- ── Lifecycle ─────────────────────────────────────────────
 
 -- Called from UI.lua SetupUI: register the queue row template + seed headers.
