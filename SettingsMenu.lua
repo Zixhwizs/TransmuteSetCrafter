@@ -30,6 +30,13 @@ function TSC.InitializeSettings()
             getFunc = function() return TSC.savedVars.closeOnExit end,
             setFunc = function(v) TSC.savedVars.closeOnExit = v end,
         },
+        {
+            type    = "checkbox",
+            name    = GetString(SI_TSC_SETTINGS_AUTO_RECONSTRUCT),
+            tooltip = GetString(SI_TSC_SETTINGS_AUTO_RECONSTRUCT_TOOLTIP),
+            getFunc = function() return TSC.savedVars.autoOpenReconstruct end,
+            setFunc = function(v) TSC.savedVars.autoOpenReconstruct = v end,
+        },
     }
     LAM:RegisterOptionControls("TransmuteSetCrafterPanel", options)
 end

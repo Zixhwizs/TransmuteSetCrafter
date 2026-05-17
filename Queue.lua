@@ -50,6 +50,7 @@ function TSC.AddToQueue(pieceId, traitType, quality, enchantment, enchantQuality
         pieceId        = pieceId,
         pieceName      = pieceData:GetFormattedName(),
         pieceType      = GetPieceType(pieceData),
+        armorType      = GetItemLinkArmorType(pieceData:GetItemLink()),
         setName        = setData and setData:GetFormattedName() or "",
         pieceIcon      = pieceData:GetIcon(),
         traitType      = traitType,
@@ -248,6 +249,7 @@ function TSC.RestoreQueue()
         if pieceData then
             entry.pieceName   = pieceData:GetFormattedName()
             entry.pieceType   = GetPieceType(pieceData)
+            entry.armorType   = GetItemLinkArmorType(pieceData:GetItemLink())
             entry.pieceWeight = nil  -- field removed; clear stale saved value
             entry.status      = entry.status or "pending"
             table.insert(cleaned, entry)

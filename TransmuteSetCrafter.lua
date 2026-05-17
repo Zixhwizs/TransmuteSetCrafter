@@ -19,6 +19,7 @@ TSC.defaults = {
     yPos           = nil,
     windowWidth           = 900,
     windowHeight          = 540,
+    dividerX              = 384,
     costWindowWidth       = 300,
     costWindowHeight      = 540,
     costWindowHidden      = false,
@@ -30,8 +31,9 @@ TSC.defaults = {
     quicksaveXPos         = nil,  -- nil → docked to cost window
     quicksaveYPos         = nil,
     quicksaves            = {},
-    openAtStation  = true,
-    closeOnExit    = true,
+    openAtStation       = true,
+    closeOnExit         = true,
+    autoOpenReconstruct = true,
 }
 
 -- ── Initialization ─────────────────────────────────────────
@@ -39,6 +41,16 @@ TSC.defaults = {
 local function Initialize()
     TSC.savedVars = ZO_SavedVars:NewAccountWide(
         "TransmuteSetCrafterSavedVars", TSC.version, nil, TSC.defaults)
+
+    -- One-time: clear stale side-window positions so they re-dock to the XML
+    -- defaults (cost right of main, quicksave right of cost).
+    if not TSC.savedVars.sideWindowDockMigrated then
+        TSC.savedVars.costXPos              = nil
+        TSC.savedVars.costYPos              = nil
+        TSC.savedVars.quicksaveXPos         = nil
+        TSC.savedVars.quicksaveYPos         = nil
+        TSC.savedVars.sideWindowDockMigrated = true
+    end
 
     TSC.InitializeSettings()
     TSC.SetupUI()
@@ -66,14 +78,40 @@ local function OnPlayerActivated()
     TSC.RefreshQueueList()
     TSC.UpdateCostDisplay()
 
-    -- Watch the keyboard retrait scene so we can close when the player leaves.
-    -- KEYBOARD_RETRAIT_ROOT_SCENE is a global set by the game's retrait station code.
+    -- Watch the keyboard retrait scene for close-on-exit and to auto-switch to
+    -- the Reconstruct tab. KEYBOARD_RETRAIT_ROOT_SCENE is a global set by the
+    -- game's retrait station code.
+    --
+    -- Auto-switch design: ZOS's OnInteractSceneShowing reads self.mode to pick
+    -- the active tab. We set self.mode to RECONSTRUCT before ZOS's callback by
+    -- registering a prioritized StateChange callback (priority<nil sorts first).
+    -- The "arm" flag is reset only on real interaction-end (walk-away), detected
+    -- via GetInteractionType()==INTERACTION_NONE at SCENE_HIDDEN. Menu-pops leave
+    -- the interaction active (INTERACTION_RETRAIT) so the flag stays cleared and
+    -- a mid-session manual switch to Retrait is not overridden.
+    TSC._needReconstructSwitch = true
+
     local scene = KEYBOARD_RETRAIT_ROOT_SCENE
                   or SCENE_MANAGER:GetScene("retrait_keyboard_root")
     if scene then
+        scene:RegisterCallback("StateChange", function(oldState, newState)
+            if newState == SCENE_SHOWING and oldState == SCENE_HIDDEN
+               and TSC.savedVars and TSC.savedVars.autoOpenReconstruct
+               and TSC._needReconstructSwitch
+               and ZO_RETRAIT_STATION_KEYBOARD then
+                ZO_RETRAIT_STATION_KEYBOARD.mode = ZO_RETRAIT_MODE_RECONSTRUCT
+                TSC._needReconstructSwitch = nil
+            end
+        end, nil, 1)
+
         scene:RegisterCallback("StateChange", function(_, newState)
-            if newState == SCENE_HIDDEN and TSC.savedVars and TSC.savedVars.closeOnExit then
-                TSC.CloseWindow()
+            if newState == SCENE_HIDDEN then
+                if GetInteractionType() == INTERACTION_NONE then
+                    TSC._needReconstructSwitch = true
+                end
+                if TSC.savedVars and TSC.savedVars.closeOnExit then
+                    TSC.CloseWindow()
+                end
             end
         end)
     end

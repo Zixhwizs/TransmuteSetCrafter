@@ -72,6 +72,34 @@ local ENCHANT_ID = {
     -- intentionally unmapped — CraftMissingGlyphs will log a skip notice.
 }
 
+-- ── Item-link enchantment fields (for tooltip preview) ────
+-- Returns (glyphItemId, subtype, lvl) suitable for fields 4/5/6 of an item
+-- link, given a TSC enchantment-name + quality. Uses LLC's published tables.
+-- Hardcoded to CP160 max because the addon doesn't otherwise track item levels.
+function TSC.GetItemLinkEnchantedFields(enchantmentName, quality)
+    local llcEnchantId = ENCHANT_ID[enchantmentName]
+    if not llcEnchantId then return nil end
+    if not LibLazyCrafting or not LibLazyCrafting.glyphEssenceIdInfo
+       or not LibLazyCrafting.enchantCPQualityInfo then
+        return nil
+    end
+
+    local glyphItemId
+    for _, row in ipairs(LibLazyCrafting.glyphEssenceIdInfo) do
+        if     row[1] == llcEnchantId then glyphItemId = row[3]; break
+        elseif row[2] == llcEnchantId then glyphItemId = row[4]; break
+        end
+    end
+    if not glyphItemId then return nil end
+
+    local qualityNum = quality or ITEM_FUNCTIONAL_QUALITY_LEGENDARY
+    local cp160      = LibLazyCrafting.enchantCPQualityInfo[160]
+    local subtype    = cp160 and cp160[qualityNum]
+    if not subtype then return nil end
+
+    return glyphItemId, subtype, 50
+end
+
 -- ── Inventory helpers ─────────────────────────────────────
 
 -- Find the reconstructed item in the backpack that belongs to `entry`.

@@ -150,23 +150,63 @@ local enchantComboBox       = nil
 local enchantQualityComboBox = nil
 local editingQueueIndex     = nil  -- when set, AddToQueue button updates this index instead of adding
 local lastUsedCategory      = nil  -- trait category of the most recent selection; lets trait/enchant choices persist across Add
+local lastSetScrollValue    = 0    -- scroll position of the set list when the user drilled into pieces
 
 -- ── Build set list ─────────────────────────────────────────
 
-local function BuildSetList()
-    local setMap   = {}
-    local lowerSrc = string.lower(searchText)
+local function ComputeWeightLabel(entry)
+    local s = ""
+    if entry.hasHeavy  then s = s .. "|cFF5050H|r" end
+    if entry.hasMedium then s = s .. "|c50FF50M|r" end
+    if entry.hasLight  then s = s .. "|c60A0FFL|r" end
+    if s == "" then
+        if entry.hasJewelry then s = s .. "J" end
+        if entry.hasWeapon  then s = s .. "W" end
+    end
+    if s == "" then return "" end
+    return "(" .. s .. ")"
+end
 
+local function BuildSetList()
+    local setMap       = {}
+    local lowerSrc     = string.lower(searchText)
+    local currencyType = ITEM_SET_COLLECTIONS_DATA_MANAGER:GetReconstructionCurrencyOptionType(1)
+                         or CURT_TRANSMUTE_CRYSTALS
+
+    -- Walk every piece. Build (or reuse) the set entry, track composition
+    -- regardless of unlock, but only bump the unlocked-piece count for unlocked
+    -- pieces. Sets with zero unlocked pieces are dropped in the filter below.
     for _, pieceData in ITEM_SET_COLLECTIONS_DATA_MANAGER:ItemSetCollectionPieceIterator() do
+        local setData = pieceData:GetItemSetCollectionData()
+        local setId   = setData:GetId()
+        local entry   = setMap[setId]
+        if not entry then
+            entry = {
+                setData    = setData,
+                count      = 0,
+                pieceCost  = setData:GetReconstructionCurrencyOptionCost(currencyType),
+                hasHeavy   = false,
+                hasMedium  = false,
+                hasLight   = false,
+                hasWeapon  = false,
+                hasJewelry = false,
+            }
+            setMap[setId] = entry
+        end
         if pieceData:IsUnlocked() then
-            local setData = pieceData:GetItemSetCollectionData()
-            local setId   = setData:GetId()
-            local entry   = setMap[setId]
-            if not entry then
-                entry = { setData = setData, count = 0 }
-                setMap[setId] = entry
-            end
             entry.count = entry.count + 1
+        end
+        local cat = pieceData:GetTraitCategory()
+        if cat == ITEM_TRAIT_TYPE_CATEGORY_ARMOR then
+            local armorType = GetItemLinkArmorType(pieceData:GetItemLink())
+            if     armorType == ARMORTYPE_HEAVY  then entry.hasHeavy  = true
+            elseif armorType == ARMORTYPE_MEDIUM then entry.hasMedium = true
+            elseif armorType == ARMORTYPE_LIGHT  then entry.hasLight  = true
+            end
+        elseif cat == ITEM_TRAIT_TYPE_CATEGORY_WEAPON then
+            entry.hasWeapon = true
+        elseif cat == ITEM_TRAIT_TYPE_CATEGORY_JEWELRY then
+            entry.hasJewelry = true
         end
     end
 
@@ -174,7 +214,7 @@ local function BuildSetList()
     for _, entry in pairs(setMap) do
         local passesSearch = searchText == "" or
             string.find(string.lower(entry.setData:GetRawName()), lowerSrc, 1, true)
-        if passesSearch then
+        if passesSearch and entry.count > 0 then
             table.insert(sets, entry)
         end
     end
@@ -255,6 +295,89 @@ function TSC.UpdateNavigationState()
         TransmuteSetCrafterWindowInventoryHeader:SetText(GetString(SI_TSC_INVENTORY_HEADER))
         TransmuteSetCrafterWindowInventoryHeader:SetColor(1, 1, 1, 1)
     end
+end
+
+-- ── Vertical divider drag ─────────────────────────────────
+-- Splitter between the set/inventory list and the queue list. The XML anchors
+-- both panels relative to TransmuteSetCrafterWindowVDivider so simply moving
+-- the divider re-flows everything that depends on it.
+
+local MIN_LEFT_PANEL  = 220
+local MIN_RIGHT_PANEL = 420
+local dividerDragging       = false
+local dividerDragStartMouse = 0
+local dividerDragStartX     = 0
+
+function TSC.SetDividerX(x)
+    local win     = TransmuteSetCrafterWindow
+    local divider = TransmuteSetCrafterWindowVDivider
+    if not win or not divider then return end
+    local winW = win:GetWidth()
+    if winW > 0 then
+        local maxX = winW - MIN_RIGHT_PANEL
+        if maxX < MIN_LEFT_PANEL then maxX = MIN_LEFT_PANEL end
+        if x < MIN_LEFT_PANEL then x = MIN_LEFT_PANEL end
+        if x > maxX            then x = maxX end
+    end
+    divider:ClearAnchors()
+    divider:SetAnchor(TOPLEFT,    win, TOPLEFT,    x, 0)
+    divider:SetAnchor(BOTTOMLEFT, win, BOTTOMLEFT, x, 0)
+    TSC.UpdateQueueColumnHeaders()
+    TSC.RefreshInventoryList()
+    TSC.RefreshQueueList()
+end
+
+local function SetDividerHighlight(ctrl, highlighted)
+    if not ctrl then return end
+    local strip = ctrl:GetNamedChild("Strip")
+    if not strip then return end
+    if highlighted then
+        strip:SetCenterColor(0.55, 0.74, 0.78, 1)  -- teal hover
+    else
+        strip:SetCenterColor(0.41, 0.41, 0.41, 1)  -- 0x696969
+    end
+end
+
+function TSC.OnVDividerMouseEnter(ctrl)
+    WINDOW_MANAGER:SetMouseCursor(MOUSE_CURSOR_RESIZE_EW)
+    SetDividerHighlight(ctrl, true)
+end
+
+function TSC.OnVDividerMouseExit(ctrl)
+    if not dividerDragging then
+        WINDOW_MANAGER:SetMouseCursor(MOUSE_CURSOR_DO_NOT_CARE)
+        SetDividerHighlight(ctrl, false)
+    end
+end
+
+local function OnDividerDragEnd(_, button)
+    if button ~= MOUSE_BUTTON_INDEX_LEFT then return end
+    if not dividerDragging then return end
+    dividerDragging = false
+    local divider = TransmuteSetCrafterWindowVDivider
+    if divider then divider:SetHandler("OnUpdate", nil) end
+    EVENT_MANAGER:UnregisterForEvent(ADDON_NAME .. "_DivDragEnd", EVENT_GLOBAL_MOUSE_UP)
+    WINDOW_MANAGER:SetMouseCursor(MOUSE_CURSOR_DO_NOT_CARE)
+    local win = TransmuteSetCrafterWindow
+    if win and divider and TSC.savedVars then
+        TSC.savedVars.dividerX = divider:GetLeft() - win:GetLeft()
+        SetDividerHighlight(divider, MouseIsOver(divider))
+    end
+end
+
+function TSC.OnVDividerMouseDown(ctrl, button)
+    if button ~= MOUSE_BUTTON_INDEX_LEFT then return end
+    local win = TransmuteSetCrafterWindow
+    if not win then return end
+    dividerDragging       = true
+    dividerDragStartMouse = GetUIMousePosition()
+    dividerDragStartX     = ctrl:GetLeft() - win:GetLeft()
+    ctrl:SetHandler("OnUpdate", function()
+        if not dividerDragging then return end
+        local mouseX = GetUIMousePosition()
+        TSC.SetDividerX(dividerDragStartX + (mouseX - dividerDragStartMouse))
+    end)
+    EVENT_MANAGER:RegisterForEvent(ADDON_NAME .. "_DivDragEnd", EVENT_GLOBAL_MOUSE_UP, OnDividerDragEnd)
 end
 
 -- ── Setup ──────────────────────────────────────────────────
@@ -359,6 +482,10 @@ function TSC.SetupUI()
     TSC.UpdateAddButton()
     TSC.UpdateTransmuteButton()
     TSC.UpdateCostDisplay()
+
+    -- Apply divider position last — all ScrollList data types must be
+    -- registered before SetDividerX, which triggers a list refresh.
+    TSC.SetDividerX(TSC.savedVars.dividerX or 384)
 end
 
 -- ── Window open / close / toggle ───────────────────────────
@@ -426,9 +553,11 @@ function TSC.RefreshInventoryList()
     if browsingMode == "sets" then
         for _, entry in ipairs(BuildSetList()) do
             table.insert(dataList, ZO_ScrollList_CreateDataEntry(SET_ENTRY, {
-                setData   = entry.setData,
-                setName   = entry.setData:GetFormattedName(),
-                numPieces = entry.count,
+                setData     = entry.setData,
+                setName     = entry.setData:GetFormattedName(),
+                numPieces   = entry.count,
+                pieceCost   = entry.pieceCost,
+                weightLabel = ComputeWeightLabel(entry),
             }))
         end
     else
@@ -439,6 +568,8 @@ function TSC.RefreshInventoryList()
                 pieceIcon      = pieceData:GetIcon(),
                 displayQuality = pieceData:GetDisplayQuality(),
                 traitCategory  = pieceData:GetTraitCategory(),
+                isUnlocked     = pieceData:IsUnlocked(),
+                armorType      = GetItemLinkArmorType(pieceData:GetItemLink()),
             }))
         end
     end
@@ -451,7 +582,12 @@ end
 
 function TSC.SetupSetRow(ctrl, data)
     ctrl.data = data
-    ctrl:GetNamedChild("Name"):SetText(data.setName)
+    local label = data.setName
+    if data.pieceCost and data.pieceCost > 0 then
+        label = string.format("(%d) %s", data.pieceCost, data.setName)
+    end
+    ctrl:GetNamedChild("Name"):SetText(label)
+    ctrl:GetNamedChild("Weight"):SetText(data.weightLabel or "")
     ctrl:GetNamedChild("Chevron"):SetText("›")
     ctrl:GetNamedChild("Highlight"):SetAlpha(0)
 end
@@ -468,6 +604,11 @@ function TSC.OnSetRowClick(ctrl, button, upInside)
     if not upInside or not ctrl.data then return end
     if button ~= MOUSE_BUTTON_INDEX_LEFT then return end
 
+    local list = TransmuteSetCrafterWindowInventoryList
+    if list and list.scrollbar then
+        lastSetScrollValue = list.scrollbar:GetValue()
+    end
+
     browsingMode = "pieces"
     selectedSet  = ctrl.data.setData
     ClearPieceSelection()
@@ -478,9 +619,11 @@ end
 
 -- ── Piece row ──────────────────────────────────────────────
 
--- A row is "disabled" when something is already selected and this piece's trait
--- category doesn't match it — mixing categories would invalidate the trait dropdown.
+-- A row is "disabled" when (a) the player hasn't collected this piece, or
+-- (b) something is already selected and this piece's trait category doesn't
+-- match it — mixing categories would invalidate the trait dropdown.
 local function PieceIsDisabled(data)
+    if not data.isUnlocked then return true end
     if not lastSelectedPiece then return false end
     if selectedPieces[data.pieceId] then return false end
     return data.traitCategory ~= lastSelectedPiece.traitCategory
@@ -492,13 +635,26 @@ function TSC.SetupInventoryRow(ctrl, data)
     local iconCtrl = ctrl:GetNamedChild("Icon")
     local nameLbl  = ctrl:GetNamedChild("Name")
     iconCtrl:SetTexture(data.pieceIcon)
-    nameLbl:SetText(data.pieceName)
+
+    local label = data.pieceName
+    if     data.armorType == ARMORTYPE_HEAVY  then label = label .. " (H)"
+    elseif data.armorType == ARMORTYPE_MEDIUM then label = label .. " (M)"
+    elseif data.armorType == ARMORTYPE_LIGHT  then label = label .. " (L)"
+    end
+    if not data.isUnlocked then
+        label = label .. GetString(SI_TSC_PIECE_NOT_COLLECTED)
+    end
+    nameLbl:SetText(label)
 
     if PieceIsDisabled(data) then
         nameLbl:SetColor(0.4, 0.4, 0.4, 1)
         iconCtrl:SetColor(1, 1, 1, 0.35)
     else
-        nameLbl:SetColor(0.463, 0.737, 0.765, 1)  -- 76BCC3
+        if     data.armorType == ARMORTYPE_HEAVY  then nameLbl:SetColor(1.00, 0.31, 0.31, 1)  -- FF5050
+        elseif data.armorType == ARMORTYPE_MEDIUM then nameLbl:SetColor(0.31, 1.00, 0.31, 1)  -- 50FF50
+        elseif data.armorType == ARMORTYPE_LIGHT  then nameLbl:SetColor(0.38, 0.63, 1.00, 1)  -- 60A0FF
+        else                                           nameLbl:SetColor(0.463, 0.737, 0.765, 1)  -- 76BCC3
+        end
         iconCtrl:SetColor(1, 1, 1, 1)
     end
 
@@ -610,6 +766,11 @@ function TSC.BackToSets()
     TSC.RefreshInventoryList()
     TSC.UpdateAddButton()
     TSC.UpdateTransmuteButton()
+
+    local list = TransmuteSetCrafterWindowInventoryList
+    if list and list.scrollbar then
+        list.scrollbar:SetValue(lastSetScrollValue)
+    end
 end
 
 -- ── Trait dropdown ─────────────────────────────────────────
@@ -744,9 +905,16 @@ end
 
 function TSC.OnSearchTextChanged(editBox)
     searchText = editBox:GetText() or ""
+    local clearBtn = TransmuteSetCrafterWindowSearchClear
+    if clearBtn then clearBtn:SetHidden(searchText == "") end
     if browsingMode == "sets" then
         TSC.RefreshInventoryList()
     end
+end
+
+function TSC.OnSearchClear()
+    local searchBox = TransmuteSetCrafterWindowSearchBox
+    if searchBox then searchBox:SetText("") end
 end
 
 -- ── Queue list ─────────────────────────────────────────────
@@ -762,6 +930,7 @@ function TSC.RefreshQueueList()
             pieceId        = entry.pieceId,
             setName        = entry.setName,
             pieceType      = entry.pieceType   or "",
+            armorType      = entry.armorType,
             traitName      = entry.traitName,
             quality        = entry.quality,
             qualityName    = entry.qualityName,
@@ -775,15 +944,52 @@ function TSC.RefreshQueueList()
     TSC.UpdateTransmuteButton()
 end
 
+-- Replace fields 4 (enchantmentItemId), 5 (subtype), 6 (level) in an item
+-- link, leaving every other field intact. Returns the patched link or the
+-- original if parsing fails.
+local function PatchEnchantmentFields(link, glyphItemId, subtype, lvl)
+    local prefix, fields, suffix = link:match("^(|H%d:item:)([^|]+)(|h.*)$")
+    if not fields then return link end
+    local parts = {}
+    for p in (fields .. ":"):gmatch("([^:]*):") do
+        parts[#parts + 1] = p
+    end
+    if #parts < 6 then return link end
+    parts[4] = tostring(glyphItemId)
+    parts[5] = tostring(subtype)
+    parts[6] = tostring(lvl)
+    return prefix .. table.concat(parts, ":") .. suffix
+end
+
 function TSC.OnQueueRowMouseEnter(ctrl)
     if not ctrl.data then return end
     ctrl:GetNamedChild("Highlight"):SetAlpha(0.2)
     if not ctrl.data.pieceId then return end
-    local pieceData = ITEM_SET_COLLECTIONS_DATA_MANAGER:GetItemSetCollectionPieceData(ctrl.data.pieceId)
-    if pieceData then
-        InitializeTooltip(ItemTooltip, ctrl, LEFT, -5, 0)
-        ItemTooltip:SetItemSetCollectionPieceLink(pieceData:GetItemLink(), HIDE_TRAIT)
+
+    local entry = TSC.queue[ctrl.data.queueIndex]
+    if not entry then return end
+
+    -- Build a preview link with the queued trait + quality so the tooltip
+    -- reflects exactly what reconstruction would produce. Weight is intrinsic
+    -- to the pieceId and shown automatically.
+    local traitType = entry.traitType or ITEM_TRAIT_TYPE_NONE
+    local link      = GetItemSetCollectionPieceItemLink(
+                          ctrl.data.pieceId, LINK_STYLE_DEFAULT,
+                          traitType, entry.quality)
+    if not link or link == "" then return end
+
+    -- Bake the planned glyph into the link's enchantment fields so the tooltip
+    -- shows the user's intended enchant rather than the item's bundled default.
+    if entry.enchantment and entry.enchantment ~= "" and TSC.GetItemLinkEnchantedFields then
+        local glyphItemId, subtype, lvl =
+            TSC.GetItemLinkEnchantedFields(entry.enchantment, entry.enchantQuality)
+        if glyphItemId then
+            link = PatchEnchantmentFields(link, glyphItemId, subtype, lvl)
+        end
     end
+
+    InitializeTooltip(ItemTooltip, ctrl, LEFT, -5, 0)
+    ItemTooltip:SetLink(link)
 end
 
 function TSC.OnQueueRowMouseExit(ctrl)
@@ -820,6 +1026,11 @@ function TSC.SetupQueueRow(ctrl, data)
     setNameLbl:SetText(data.setName or "")
     setNameLbl:SetColor(r, g, b, 1)
     typeLbl:SetText(data.pieceType or "")
+    if     data.armorType == ARMORTYPE_HEAVY  then typeLbl:SetColor(1.00, 0.31, 0.31, 1)
+    elseif data.armorType == ARMORTYPE_MEDIUM then typeLbl:SetColor(0.31, 1.00, 0.31, 1)
+    elseif data.armorType == ARMORTYPE_LIGHT  then typeLbl:SetColor(0.38, 0.63, 1.00, 1)
+    else                                           typeLbl:SetColor(0.463, 0.737, 0.765, 1)  -- 76BCC3
+    end
     traitLbl:SetText(data.traitName or "")
 
     local enchantText = data.enchantment or ""
@@ -955,7 +1166,13 @@ local function GetItemNameById(itemId)
     local link = string.format("|H1:item:%d:30:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0|h|h", itemId)
     local name = GetItemLinkName(link)
     if not name or name == "" then return nil end
-    return name
+    return zo_strformat(SI_TOOLTIP_ITEM_NAME, name)
+end
+
+local function GetItemQualityById(itemId)
+    if not itemId then return nil end
+    local link = string.format("|H1:item:%d:30:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0|h|h", itemId)
+    return GetItemLinkFunctionalQuality(link)
 end
 
 -- Sum the player's stock of an item across backpack, bank, subscriber bank, and craft bag.
@@ -1002,6 +1219,7 @@ function TSC.GetCostBreakdown()
                 name    = name,
                 needed  = needed,
                 have    = CountItemAvailable(itemId),
+                quality = GetItemQualityById(itemId),
                 sortKey = "1_" .. name,
             })
         end
@@ -1030,6 +1248,7 @@ function TSC.GetCostBreakdown()
             name    = name,
             needed  = needed,
             have    = CountItemAvailable(itemId),
+            quality = GetItemQualityById(itemId),
             sortKey = "2_" .. name,
         })
     end
@@ -1064,9 +1283,19 @@ function TSC.SetupCostRow(ctrl, data)
     else
         r, g, b = 1.0, 0.45, 0.45   -- short — light red
     end
-    nameLbl:SetColor(r, g, b, 1)
     neededLbl:SetColor(r, g, b, 1)
     haveLbl:SetColor(r, g, b, 1)
+
+    if data.quality then
+        local qr, qg, qb = GetInterfaceColor(INTERFACE_COLOR_TYPE_ITEM_QUALITY_COLORS, data.quality)
+        if qr then
+            nameLbl:SetColor(qr, qg, qb, 1)
+        else
+            nameLbl:SetColor(r, g, b, 1)
+        end
+    else
+        nameLbl:SetColor(r, g, b, 1)
+    end
 end
 
 function TSC.RefreshCostPanel()
