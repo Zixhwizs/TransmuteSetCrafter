@@ -166,6 +166,16 @@ local function Initialize()
     TSC.SetupUI()
 end
 
+-- ── Console fast-path ─────────────────────────────────────
+-- This is a keyboard-only addon. Console clients can't usefully load it.
+-- Bail before registering any user-facing events so nothing fires and no
+-- savedVars are touched. IsConsoleUI() is stable for the whole session,
+-- unlike IsInGamepadPreferredMode() (which a PC player can toggle), so
+-- using it at init time is safe: if it's false now, it stays false, and
+-- mid-session gamepad toggles are handled separately below by the
+-- EVENT_GAMEPAD_PREFERRED_MODE_CHANGED watcher.
+if IsConsoleUI() then return end
+
 -- ── Addon loaded ───────────────────────────────────────────
 
 local function OnAddonLoaded(_, addonName)
@@ -266,3 +276,20 @@ EVENT_MANAGER:RegisterForEvent(
 
 SLASH_COMMANDS["/tsc"]              = function() TSC.ToggleWindow() end
 SLASH_COMMANDS["/transmutecrafter"] = function() TSC.ToggleWindow() end
+
+-- ── Gamepad-mode toggle watcher ───────────────────────────
+-- A PC player can switch into gamepad-preferred mode mid-session without
+-- /reloadui. If TSC's window is open at the moment they switch, the
+-- keyboard-only UI becomes orphaned behind the gamepad UI and the user
+-- can't interact with it. Auto-close it on the switch so the next manual
+-- open will route through TSC.OpenWindow's gamepad-mode alert.
+EVENT_MANAGER:RegisterForEvent(
+    TSC.name .. "_ModeChange",
+    EVENT_GAMEPAD_PREFERRED_MODE_CHANGED,
+    function()
+        if not IsInGamepadPreferredMode() then return end
+        local win = TransmuteSetCrafterWindow
+        if win and not win:IsHidden() then
+            TSC.CloseWindow()
+        end
+    end)
