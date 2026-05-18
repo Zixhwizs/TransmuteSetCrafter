@@ -469,9 +469,19 @@ function TSC.BackToSets()
     TSC.UpdateAddButton()
     TSC.UpdateTransmuteButton()
 
+    -- Restore scroll position on the next frame. ZO_ScrollList_Commit may
+    -- defer its scrollbar SetMinMax call (it falls back to an OnUpdate
+    -- handler when the contents have transient zero-height during a mode
+    -- switch). Setting the slider value immediately would clamp against
+    -- the stale piece-mode max, which silently truncates high values to
+    -- whatever the piece list's max was — visible as "scroll snaps to top"
+    -- when the user was near the bottom of the set list.
     local list = TransmuteSetCrafterWindowInventoryList
+    local target = lastSetScrollValue
     if list and list.scrollbar then
-        list.scrollbar:SetValue(lastSetScrollValue)
+        zo_callLater(function()
+            if list.scrollbar then list.scrollbar:SetValue(target) end
+        end, 0)
     end
 end
 
