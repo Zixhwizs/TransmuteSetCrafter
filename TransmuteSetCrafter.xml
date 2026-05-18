@@ -558,11 +558,17 @@
         </Button>
 
         <!-- ── Section headers (y=78) ── -->
+        <!-- Sort selector — right-aligned in the header row, hidden in piece mode -->
+        <Control name="$(parent)SortDropdown" inherits="ZO_ComboBox">
+          <Anchor point="TOPRIGHT" relativeTo="$(parent)VDivider"
+                  relativePoint="TOPLEFT" offsetX="-2" offsetY="76" />
+          <Dimensions x="110" y="24" />
+        </Control>
         <Label name="$(parent)InventoryHeader" font="ZoFontGameLargeBold"
                color="FFFFFF" verticalAlignment="CENTER" mouseEnabled="true">
           <Anchor point="TOPLEFT" offsetX="10" offsetY="78" />
-          <Anchor point="TOPRIGHT" relativeTo="$(parent)VDivider"
-                  relativePoint="TOPLEFT" offsetX="-2" offsetY="78" />
+          <Anchor point="TOPRIGHT" relativeTo="$(parent)SortDropdown"
+                  relativePoint="TOPLEFT" offsetX="-6" offsetY="2" />
           <Dimensions y="20" />
           <OnMouseUp>
             TransmuteSetCrafter.OnInventoryHeaderClick()

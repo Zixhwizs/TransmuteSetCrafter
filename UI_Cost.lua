@@ -79,15 +79,19 @@ function TSC.GetCostBreakdown()
         end
     end
 
-    -- Improvement (upgrade) materials per item using ESO's canonical itemIds
+    -- Improvement (upgrade) materials per item using ESO's canonical itemIds.
+    -- The floor is the piece's intrinsic minimum functional quality (most
+    -- dropped sets start at Fine/green = 2), NOT always Normal/white.
+    -- Matches ZO_ItemSetCollectionReconstructionPieceData:GetCostInfo.
     local matCounts = {}
     for _, entry in ipairs(TSC.queue) do
-        local quality = entry.quality
-        if quality and quality > ITEM_FUNCTIONAL_QUALITY_NORMAL then
+        local target = entry.quality
+        if target and target > ITEM_FUNCTIONAL_QUALITY_NORMAL then
             local pieceData = TSC.GetPieceData(entry.pieceId)
             if pieceData then
                 local craftType = GetItemLinkCraftingSkillType(pieceData:GetItemLink())
-                for tier = 1, quality - 1 do
+                local minQ      = pieceData:GetFunctionalQuality() or ITEM_FUNCTIONAL_QUALITY_NORMAL
+                for tier = minQ, target - 1 do
                     local matId = GetImprovementMaterialId(craftType, tier)
                     if matId then
                         matCounts[matId] = (matCounts[matId] or 0) + IMPROVEMENT_COUNTS[tier]

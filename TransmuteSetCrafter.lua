@@ -143,6 +143,7 @@ TSC.defaults = {
     openAtStation       = true,
     closeOnExit         = true,
     autoOpenReconstruct = true,
+    sortMode            = "name",  -- "name" | "cost" | "weight"
 }
 
 -- ── Initialization ─────────────────────────────────────────

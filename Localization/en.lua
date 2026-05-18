@@ -112,3 +112,8 @@ ZO_CreateStringId("SI_TSC_MSG_QUICKSAVE_RENAMED",   "Renamed quicksave to '<<1>>
 -- Queue from equipped gear
 ZO_CreateStringId("SI_TSC_LABEL_QUEUE_EQUIPPED",    "Queue Equipped")
 ZO_CreateStringId("SI_TSC_MSG_EQUIPPED_QUEUED",     "Queued <<1>> equipped piece(s); skipped <<2>> (crafted sets and non-reconstructable items can't be queued).")
+
+-- Set-list sort
+ZO_CreateStringId("SI_TSC_SORT_BY_NAME",            "Name")
+ZO_CreateStringId("SI_TSC_SORT_BY_COST",            "Cost")
+ZO_CreateStringId("SI_TSC_SORT_BY_WEIGHT",          "Weight")

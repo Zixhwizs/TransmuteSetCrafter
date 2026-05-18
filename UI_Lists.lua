@@ -23,6 +23,71 @@ local INV_ROW_HEIGHT = 30
 local searchText         = ""
 local lastSetScrollValue = 0
 
+-- Sort dropdown handle (populated by SetupSortDropdown). Sort mode itself
+-- is persisted in TSC.savedVars.sortMode (default "name").
+local sortComboBox
+local SORT_MODES   = { "name", "cost", "weight" }
+local SORT_LABELS  = {
+    name   = SI_TSC_SORT_BY_NAME,
+    cost   = SI_TSC_SORT_BY_COST,
+    weight = SI_TSC_SORT_BY_WEIGHT,
+}
+
+local function PlainWeightKey(entry)
+    local s = ""
+    if entry.hasHeavy  then s = s .. "H" end
+    if entry.hasMedium then s = s .. "M" end
+    if entry.hasLight  then s = s .. "L" end
+    if s == "" then
+        if entry.hasJewelry then s = s .. "J" end
+        if entry.hasWeapon  then s = s .. "W" end
+    end
+    return s
+end
+
+-- Search-box cost filter: if the user types "<N", ">N", "=N", "==N",
+-- "<=N", or ">=N" (whitespace tolerant) the set list filters by
+-- per-piece transmute cost instead of by name.
+local function ParseCostFilter(text)
+    local op, numStr = text:match("^%s*([<>=]+)%s*(%-?%d+)%s*$")
+    if not op or not numStr then return nil end
+    if op == "<" or op == ">" or op == "=" or op == "==" or op == "<=" or op == ">=" then
+        return op, tonumber(numStr)
+    end
+    return nil
+end
+
+local function MatchesCost(cost, op, value)
+    cost = cost or 0
+    if op == "<"  then return cost <  value end
+    if op == ">"  then return cost >  value end
+    if op == "<=" then return cost <= value end
+    if op == ">=" then return cost >= value end
+    if op == "=" or op == "==" then return cost == value end
+    return false
+end
+
+-- Search-box weight filter: if the user types "(HML)", "(JW)", "(H)" etc.
+-- (case-insensitive), the set list filters to entries whose weight
+-- indicators contain ALL of the specified letters.
+local function ParseWeightFilter(text)
+    local letters = text:match("^%s*%(([HMLJWhmljw]+)%)%s*$")
+    if not letters then return nil end
+    return letters:upper()
+end
+
+local function MatchesWeight(entry, requiredLetters)
+    for letter in requiredLetters:gmatch(".") do
+        if     letter == "H" and not entry.hasHeavy   then return false
+        elseif letter == "M" and not entry.hasMedium  then return false
+        elseif letter == "L" and not entry.hasLight   then return false
+        elseif letter == "J" and not entry.hasJewelry then return false
+        elseif letter == "W" and not entry.hasWeapon  then return false
+        end
+    end
+    return true
+end
+
 -- ── Set list builder ───────────────────────────────────────
 
 local function ComputeWeightLabel(entry)
@@ -81,16 +146,37 @@ local function BuildSetList()
     end
 
     local sets = {}
+    local costOp, costVal = ParseCostFilter(searchText)
+    local weightFilter    = ParseWeightFilter(searchText)
     for _, entry in pairs(setMap) do
-        local passesSearch = searchText == "" or
-            string.find(string.lower(entry.setData:GetRawName()), lowerSrc, 1, true)
+        local passesSearch
+        if costOp then
+            passesSearch = MatchesCost(entry.pieceCost, costOp, costVal)
+        elseif weightFilter then
+            passesSearch = MatchesWeight(entry, weightFilter)
+        else
+            passesSearch = searchText == "" or
+                string.find(string.lower(entry.setData:GetRawName()), lowerSrc, 1, true)
+        end
         if passesSearch and entry.count > 0 then
             table.insert(sets, entry)
         end
     end
 
+    local mode = TSC.savedVars.sortMode or "name"
     table.sort(sets, function(a, b)
-        return a.setData:GetRawName() < b.setData:GetRawName()
+        local ak, bk
+        if mode == "cost" then
+            ak, bk = a.pieceCost or 0, b.pieceCost or 0
+        elseif mode == "weight" then
+            ak, bk = PlainWeightKey(a), PlainWeightKey(b)
+        else
+            ak, bk = a.setData:GetRawName(), b.setData:GetRawName()
+        end
+        if ak == bk then
+            return a.setData:GetRawName() < b.setData:GetRawName()
+        end
+        return ak < bk
     end)
     return sets
 end
@@ -151,6 +237,8 @@ function TSC.UpdateNavigationState()
 
     TransmuteSetCrafterWindowSearchBG:SetHidden(inPieceMode)
     TransmuteSetCrafterWindowSearchBox:SetHidden(inPieceMode)
+    local sortDD = TransmuteSetCrafterWindowSortDropdown
+    if sortDD then sortDD:SetHidden(inPieceMode) end
 
     if inPieceMode and UI.selectedSet then
         TransmuteSetCrafterWindowInventoryHeader:SetText(
@@ -405,7 +493,28 @@ end
 
 -- ── Lifecycle ─────────────────────────────────────────────
 
--- Called once from UI.lua SetupUI: register the two ScrollList row templates.
+local function SetupSortDropdown()
+    sortComboBox = ZO_ComboBox_ObjectFromContainer(TransmuteSetCrafterWindowSortDropdown)
+    if not sortComboBox then return end
+    sortComboBox:SetSortsItems(false)
+    sortComboBox:ClearItems()
+
+    local current = TSC.savedVars.sortMode or "name"
+    local selectedEntry
+    for _, mode in ipairs(SORT_MODES) do
+        local captured = mode
+        local entry = sortComboBox:CreateItemEntry(GetString(SORT_LABELS[mode]), function()
+            TSC.savedVars.sortMode = captured
+            TSC.RefreshInventoryList()
+        end)
+        sortComboBox:AddItem(entry)
+        if mode == current then selectedEntry = entry end
+    end
+    if selectedEntry then sortComboBox:SelectItem(selectedEntry) end
+end
+
+-- Called once from UI.lua SetupUI: register the two ScrollList row templates
+-- and populate the sort selector.
 function TSC.SetupInventoryList()
     local invList = TransmuteSetCrafterWindowInventoryList
     ZO_ScrollList_AddDataType(invList, SET_ENTRY,   "TSC_SetRow",
@@ -415,4 +524,6 @@ function TSC.SetupInventoryList()
                               INV_ROW_HEIGHT,
                               function(ctrl, data) TSC.SetupInventoryRow(ctrl, data) end)
     ZO_ScrollList_EnableHighlight(invList, "ZO_TallListHighlight")
+
+    SetupSortDropdown()
 end
