@@ -48,7 +48,6 @@ local ENCHANTMENTS_JEWELRY = {
     "Disease Resist",
     "Flame Resist",
     "Frost Resist",
-    "Healing Done",
     "Health Recovery",
     "Magicka Recovery",
     "Poison Resist",

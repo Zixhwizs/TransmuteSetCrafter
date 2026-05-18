@@ -68,8 +68,6 @@ local ENCHANT_ID = {
     ["Spell Damage"]           = 93,  -- Increase Magical Harm
     ["Stamina Recovery"]       = 26,
     ["Weapon Damage"]          = 4,   -- Increase Physical Harm
-    -- "Healing Done" exists in the UI dropdown but isn't in LLC's glyphInfo;
-    -- intentionally unmapped — CraftMissingGlyphs will log a skip notice.
 }
 
 -- ── Reverse lookup: read an equipped item's enchant ──────

@@ -1,0 +1,94 @@
+[size=5][b]Transmute Set Crafter[/b][/size]
+
+  [size=4]A queue-based reconstruction assistant for the Transmutation Station, with optional glyph automation at the Enchanting Station.[/size]
+  
+  [i]Does not support gamepad mode[/i]
+
+  [size=4][b]Requirements[/b][/size]
+  [list]
+  [*][url=https://www.esoui.com/downloads/info7-LibAddonMenu.html][b]LibAddonMenu-2.0[/b][/url]
+  [*][url=https://www.esoui.com/downloads/info1492-LibLazyCrafting.html][b]LibLazyCrafting[/b][/url]
+  [/list]
+
+  [size=4][b]Features[/b][/size]
+
+  [size=3][b]Set browser[/b][/size]
+  [list]
+  [*]Every transmutable item set, with a search box and a sort dropdown (Name / Cost / Weight).
+  [*][b]Cost per piece[/b] shown in parentheses before each set name.
+  [*][b]Composition tag[/b] on the right: [color="#FF5050"]H[/color] / [color="#50FF50"]M[/color] / [color="#60A0FF"]L[/color] for armor, W for weapon-only, J for jewelry-only (or combinations such as JW). Letters are color-coded by weight.
+  [*][b]Search box doubles as a filter:[/b]
+  [list]    
+  [*][b]Cost comparator[/b]: type [b]<25[/b], [b]>=30[/b], [b]==40[/b] (also [b]<[/b], [b]>[/b], [b]<=[/b], [b]=[/b]) — filters by per-piece transmute cost.
+  [*][b]Weight indicator[/b]: type [b](H)[/b], [b](HML)[/b], [b](JW)[/b] etc. — filters to sets matching all specified letters. Case-insensitive, order-independent.
+  [*]Anything else — substring match against set name (default behavior).
+  [/list]
+  [/list]   
+
+  [size=3][b]Piece browser[/b][/size]
+  [list]
+  [*]Click a set to see its pieces; multi-select pieces of the same trait category.
+  [*]Uncollected pieces are greyed out and not selectable, with a [b](not collected)[/b] suffix.
+  [*]Armor pieces show their weight tag and are color-coded by weight.
+  [*]Trait-category lock: picking an armor piece greys out weapons/jewelry pieces (and vice versa) so the trait dropdown stays valid.
+  [/list]
+  
+  [size=3][b]Queue[/b][/size]
+  [list]
+  [*][b]Edit any row[/b] via its Edit button; dropdowns load with the entry's current values and the action becomes [b]Update Entry[/b]. [b]Cancel Edit[/b] discards.
+  [*][b]Auto-cancel edit[/b] when you click a new inventory piece.
+  [*][b]Per-row warning indicator[/b]: red [b]![/b] icon when an entry can't actually be reconstructed (piece not collected, trait not researched). Hover for the reason.
+  [*][b]Hover any row[/b] for a preview tooltip showing the item exactly as it would be produced — your selected trait, quality, and the planned glyph baked into the item link.
+  [*][b]Queue Equipped[/b] button (bottom-right): reads everything you're wearing and queues each set piece with its current trait/quality and any detected glyph. Note that crafted sets are skipped (the Transmutation Station doesn't reconstruct them).
+  [*][b]Persistent queue[/b]: saved account-wide.
+  [/list]
+  
+  [size=3][b]Reconstruction (Transmutation Station)[/b][/size]
+  [list]
+  [*][b]Auto-opens[/b] when you interact with the station (configurable).
+  [*][b]Reconstruct All (N)[/b] fires reconstructions in sequence.
+  [*]Entries with no enchantment are removed on success; entries with a planned glyph stay marked [b](missing)[/b] until the glyph is applied at the enchanting station.
+  [/list]
+
+  [size=3][b]Glyph automation (Enchanting Station)[/b][/size]
+  [list]
+  [*]For each [b](missing)[/b] entry: applies an existing matching glyph from your bag if you have one, otherwise queues a craft via [b]LibLazyCrafting[/b] and applies the result once it lands.
+  [*]Successfully applied entries are removed from the queue automatically.
+  [/list]   
+
+  [size=3][b]Materials window[/b][/size]
+  [list]    
+  [*]Lists [b]Transmute Crystals[/b], [b]glyph runes[/b] (per LibLazyCrafting), and [b]item upgrade materials[/b] with [color="#8CF28C"]Need[/color] / [color="#FF7373"]Have[/color] columns color-coded green / red. Item names color-coded by quality.
+  [*]"Have" counts span Backpack + Bank + Craft Bag.
+  [/list]
+  
+  [size=3][b]Quicksaves[/b][/size]
+  [list]
+  [*]Save named snapshots of the current queue. Click a row to append it back into the queue.
+  [*][b]Rename[/b] (R), [b]Export[/b] (E), and [b]Delete[/b] (X) per row.
+  [*][b]Import[/b] button at the top of the panel — paste a TSC export string and click Import.
+  [*][b]Export string format[/b]: [code]TSC1|<name>|<pieceId>;<trait>;<quality>;<enchant>;<enchantQuality>|<entry>|…[/code] Share via chat / forum / wherever; another TSC user can paste it back.
+  [/list]
+  
+  [size=3][b]Commands[/b][/size]
+  [list]
+  [*][b]/tsc[/b] or [b]/transmutecrafter[/b] — toggle the main window.
+  [*]Keybindable [b]Toggle Transmute Set Crafter[/b] action under [i]Controls → Transmute Set Crafter[/i].
+  [/list]
+  
+  [size=4][b]Settings[/b][/size]
+  [i]Escape → Settings → Addons → Transmute Set Crafter[/i]
+  [list]
+  [*][b]Open at station[/b] — auto-open when interacting with a Transmutation Station.
+  [*][b]Close on exit[/b] — auto-close when you leave the station.
+  [*][b]Open on Reconstruct tab[/b] — auto-switch the station to the Reconstruct tab on first show.
+  [/list]
+  
+  [size=4][b]Known limitations[/b][/size]
+  [list]
+  [*][b]Crafted sets can't be queued.[/b] The Transmutation Station only reconstructs dropped / dungeon / trial sets.
+  [*][b]Manual glyph application isn't auto-detected.[/b] If you apply a glyph yourself outside the LLC flow, click X on the queue row to clear it.
+  [/list]
+  
+  [size=3][b]Inspired by[/b] [url=https://www.esoui.com/downloads/info1806-DolgubonsLazySetCrafter.html]Dolgubon's Lazy Set Crafter[/url].[/size]
+
