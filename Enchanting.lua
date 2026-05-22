@@ -55,6 +55,7 @@ local ENCHANT_ID = {
     ["Flame Resist"]           = 11,
     ["Frost Resist"]           = 14,
     ["Health Recovery"]        = 18,
+    ["Increase Weapon Damage"] = 92,  -- Glyph of Increase Weapon Damage (jewelry)
     ["Magicka Recovery"]       = 20,
     ["Poison Resist"]          = 23,
     ["Potion Boost"]           = 90,
@@ -67,7 +68,9 @@ local ENCHANT_ID = {
     ["Shock Resist"]           = 31,
     ["Spell Damage"]           = 93,  -- Increase Magical Harm
     ["Stamina Recovery"]       = 26,
-    ["Weapon Damage"]          = 4,   -- Increase Physical Harm
+
+    -- Weapon (continued — paired with Weakening on the Okoma rune)
+    ["Weapon Damage"]          = 4,   -- Glyph of Weapon Damage (Berserker proc)
 }
 
 -- ── Reverse lookup: read an equipped item's enchant ──────

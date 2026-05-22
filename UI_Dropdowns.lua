@@ -32,6 +32,7 @@ local ENCHANTMENTS_WEAPON = {
     "Prismatic Onslaught",
     "Shock",
     "Weakening",
+    "Weapon Damage",
 }
 
 local ENCHANTMENTS_ARMOR = {
@@ -49,6 +50,7 @@ local ENCHANTMENTS_JEWELRY = {
     "Flame Resist",
     "Frost Resist",
     "Health Recovery",
+    "Increase Weapon Damage",
     "Magicka Recovery",
     "Poison Resist",
     "Potion Boost",
@@ -61,7 +63,6 @@ local ENCHANTMENTS_JEWELRY = {
     "Shock Resist",
     "Spell Damage",
     "Stamina Recovery",
-    "Weapon Damage",
 }
 
 local function GetEnchantmentsForCategory(category)
