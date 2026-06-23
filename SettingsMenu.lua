@@ -37,6 +37,20 @@ function TSC.InitializeSettings()
             getFunc = function() return TSC.savedVars.autoOpenReconstruct end,
             setFunc = function(v) TSC.savedVars.autoOpenReconstruct = v end,
         },
+        {
+            type    = "checkbox",
+            name    = GetString(SI_TSC_SETTINGS_AUTO_OPEN_ENCHANT),
+            tooltip = GetString(SI_TSC_SETTINGS_AUTO_OPEN_ENCHANT_TOOLTIP),
+            getFunc = function() return TSC.savedVars.openAtEnchantStation end,
+            setFunc = function(v) TSC.savedVars.openAtEnchantStation = v end,
+        },
+        {
+            type    = "checkbox",
+            name    = GetString(SI_TSC_SETTINGS_CLOSE_ON_ENCHANT_EXIT),
+            tooltip = GetString(SI_TSC_SETTINGS_CLOSE_ON_ENCHANT_EXIT_TOOLTIP),
+            getFunc = function() return TSC.savedVars.closeOnEnchantExit end,
+            setFunc = function(v) TSC.savedVars.closeOnEnchantExit = v end,
+        },
     }
     LAM:RegisterOptionControls("TransmuteSetCrafterPanel", options)
 end

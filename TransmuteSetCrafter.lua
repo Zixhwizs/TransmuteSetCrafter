@@ -140,9 +140,11 @@ TSC.defaults = {
     quicksaveXPos         = nil,  -- nil → docked to cost window
     quicksaveYPos         = nil,
     quicksaves            = {},
-    openAtStation       = true,
-    closeOnExit         = true,
-    autoOpenReconstruct = true,
+    openAtStation         = true,
+    closeOnExit           = true,
+    autoOpenReconstruct   = true,
+    openAtEnchantStation  = true,
+    closeOnEnchantExit    = true,
     sortMode            = "name",  -- "name" | "cost" | "weight"
 }
 

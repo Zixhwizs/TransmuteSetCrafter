@@ -242,6 +242,21 @@ end
 
 -- ── Crafting + applying ───────────────────────────────────
 
+-- Public: true if at least one queue entry has been reconstructed but still
+-- needs its glyph applied (status == "needs_enchant" with a real enchantment).
+-- Used to gate the enchanting-station auto-open so the window only pops up
+-- when there's actually glyph work pending.
+function TSC.HasPendingGlyphs()
+    if not TSC.queue then return false end
+    for _, entry in ipairs(TSC.queue) do
+        if entry.status == "needs_enchant"
+           and entry.enchantment and entry.enchantment ~= "" then
+            return true
+        end
+    end
+    return false
+end
+
 -- Public: at the enchanting station, queue glyph crafts for needs_enchant entries
 -- (or apply an existing matching glyph if one is already in the bag).
 function TSC.CraftMissingGlyphs()
@@ -407,7 +422,22 @@ local function OnAddonLoaded(_, addonName)
         EVENT_CRAFTING_STATION_INTERACT,
         function(_, craftingType)
             if craftingType == CRAFTING_TYPE_ENCHANTING then
+                if TSC.savedVars and TSC.savedVars.openAtEnchantStation
+                   and TSC.HasPendingGlyphs() then
+                    TSC.OpenWindow()
+                end
                 TSC.CraftMissingGlyphs()
+            end
+        end
+    )
+
+    EVENT_MANAGER:RegisterForEvent(
+        ADDON_NAME .. "_EnchantStationEnd",
+        EVENT_END_CRAFTING_STATION_INTERACT,
+        function(_, craftingType)
+            if craftingType == CRAFTING_TYPE_ENCHANTING
+               and TSC.savedVars and TSC.savedVars.closeOnEnchantExit then
+                TSC.CloseWindow()
             end
         end
     )

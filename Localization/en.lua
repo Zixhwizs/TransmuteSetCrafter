@@ -33,12 +33,16 @@ ZO_CreateStringId("SI_TSC_GAMEPAD_UNSUPPORTED",     "Transmute Set Crafter does 
 
 -- Settings
 ZO_CreateStringId("SI_TSC_SETTINGS_PANEL_NAME",     "Transmute Set Crafter")
-ZO_CreateStringId("SI_TSC_SETTINGS_CLOSE_ON_EXIT",  "Close on station exit")
+ZO_CreateStringId("SI_TSC_SETTINGS_CLOSE_ON_EXIT",  "Close on transmute station exit")
 ZO_CreateStringId("SI_TSC_SETTINGS_CLOSE_ON_EXIT_TOOLTIP", "Automatically close the window when you leave a Transmutation Station.")
-ZO_CreateStringId("SI_TSC_SETTINGS_AUTO_OPEN",      "Open at station")
+ZO_CreateStringId("SI_TSC_SETTINGS_AUTO_OPEN",      "Open at transmute station")
 ZO_CreateStringId("SI_TSC_SETTINGS_AUTO_OPEN_TOOLTIP", "Automatically open the window when you interact with a Transmutation Station.")
 ZO_CreateStringId("SI_TSC_SETTINGS_AUTO_RECONSTRUCT", "Open on Reconstruct tab")
 ZO_CreateStringId("SI_TSC_SETTINGS_AUTO_RECONSTRUCT_TOOLTIP", "Automatically switch the Transmutation Station to the Reconstruct tab when you interact with it. A manual switch back to Retrait in the same session is preserved.")
+ZO_CreateStringId("SI_TSC_SETTINGS_AUTO_OPEN_ENCHANT", "Open at enchanting station")
+ZO_CreateStringId("SI_TSC_SETTINGS_AUTO_OPEN_ENCHANT_TOOLTIP", "Automatically open the window when you interact with an Enchanting Station and at least one queued item is still waiting on its glyph. Stations interacted with while the queue has no pending glyph work are left alone.")
+ZO_CreateStringId("SI_TSC_SETTINGS_CLOSE_ON_ENCHANT_EXIT", "Close on enchanting station exit")
+ZO_CreateStringId("SI_TSC_SETTINGS_CLOSE_ON_ENCHANT_EXIT_TOOLTIP", "Automatically close the window when you leave an Enchanting Station.")
 
 -- UI labels (column headers, buttons, placeholder text)
 ZO_CreateStringId("SI_TSC_COL_SET",                 "Set")
